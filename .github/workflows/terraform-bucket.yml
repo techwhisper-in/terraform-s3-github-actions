@@ -43,6 +43,7 @@ on:
         options:
           - Plan
           - Apply
+          - DestroyPlan
           - Destroy
 
 jobs:
@@ -106,6 +107,10 @@ jobs:
       - name: Terraform Apply
         if: github.event.inputs.ActionToTake == 'Apply'
         run: terraform apply -auto-approve -var-file="terraform.tfvars.json"
+        
+      - name: Terraform Destroy Plan
+        if: github.event.inputs.ActionToTake == 'DestroyPlan'
+        run: terraform plan -destroy -var-file="terraform.tfvars.json"
 
       - name: Terraform Destroy
         if: github.event.inputs.ActionToTake == 'Destroy'
