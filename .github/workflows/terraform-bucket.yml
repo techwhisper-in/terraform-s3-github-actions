@@ -68,32 +68,24 @@ jobs:
             echo "Error: Bucket '$BUCKET_NAME' not found in buckets.json"
             exit 1
           fi
-          
-          # Dynamically extract all properties from the JSON configuration
           echo "config_json=$(echo $CONFIG | jq -c '.')" >> $GITHUB_OUTPUT
-          
-          # Extract all keys and set them as outputs
-          echo "$CONFIG" | jq -r 'keys[]' | while read key; do
-            value=$(echo "$CONFIG" | jq -r --arg k "$key" '.[$k] | tostring')
-            echo "$key=$value" >> $GITHUB_OUTPUT
-          done
 
-      - name: Generate terraform.tfvars
+      - name: Generate terraform.tfvars.json
         run: |
-          # Create a tfvars file with all the configuration
-          cat > terraform.tfvars << EOF
-          BucketName = "${{ github.event.inputs.BucketName }}"
-          ApplicationCI = "${{ github.event.inputs.ApplicationCI }}"
-          env = "${{ github.event.inputs.env }}"
-          EnvType = "${{ github.event.inputs.EnvType }}"
-          Region = "${{ github.event.inputs.Region }}"
+          # Create a combined JSON object with inputs and bucket config
+          cat > terraform.tfvars.json << EOF
+          {
+            "BucketName": "${{ github.event.inputs.BucketName }}",
+            "ApplicationCI": "${{ github.event.inputs.ApplicationCI }}",
+            "env": "${{ github.event.inputs.env }}",
+            "EnvType": "${{ github.event.inputs.EnvType }}",
+            "Region": "${{ github.event.inputs.Region }}",
+            $(echo "${{ steps.bucket_config.outputs.config_json }}" | jq -r 'to_entries | map("\"\(.key)\": \(.value | @json)") | join(",")')
+          }
           EOF
           
-          # Add all dynamic properties from the JSON config
-          echo "${{ steps.bucket_config.outputs.config_json }}" | jq -r 'to_entries[] | "\(.key) = \(.value | @json)"' >> terraform.tfvars
-          
-          echo "Generated terraform.tfvars:"
-          cat terraform.tfvars
+          echo "Generated terraform.tfvars.json:"
+          cat terraform.tfvars.json
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -110,12 +102,12 @@ jobs:
 
       - name: Terraform Plan
         if: github.event.inputs.ActionToTake == 'Plan'
-        run: terraform plan -var-file="terraform.tfvars"
+        run: terraform plan -var-file="terraform.tfvars.json"
 
       - name: Terraform Apply
         if: github.event.inputs.ActionToTake == 'Apply'
-        run: terraform apply -auto-approve -var-file="terraform.tfvars"
+        run: terraform apply -auto-approve -var-file="terraform.tfvars.json"
 
       - name: Terraform Destroy
         if: github.event.inputs.ActionToTake == 'Destroy'
-        run: terraform destroy -auto-approve -var-file="terraform.tfvars"
+        run: terraform destroy -auto-approve -var-file="terraform.tfvars.json"
