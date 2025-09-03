@@ -1,0 +1,27 @@
+{
+    "ankit-terraform-github-action-s3-bucket-4566":
+    {
+    "create_bucket": "false",
+    "custom_tags": {
+        "terraform":"true"
+    },
+    "enable_versioning": "true",
+    "object_ownership": "BucketOwnerEnforced"
+    },
+    "ankit-terraform-github-action-s3-bucket-565":
+    {
+    "create_bucket": "false",
+    "custom_tags": {
+        "terraform":"true"
+    },
+    "enable_versioning": "true",
+    "object_ownership": "BucketOwnerEnforced"
+    },
+    "ankit-terraform-github-action-s3-bucket-56465":
+    {
+    "create_bucket": "false",
+    "custom_tags": {},
+    "enable_versioning": "true",
+    "object_ownership": "BucketOwnerEnforced"
+    }
+}
