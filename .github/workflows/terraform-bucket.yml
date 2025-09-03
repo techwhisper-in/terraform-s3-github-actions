@@ -1,0 +1,129 @@
+name: Terraform S3 Bucket Management
+on:
+  workflow_dispatch:
+    inputs:
+      BucketName:
+        description: 'Name of the S3 bucket to manage'
+        required: true
+        type: string
+      Region:
+        description: 'Region Name'
+        required: true
+        type: choice
+        options:
+          - us-east-1
+          - us-east-2
+          - ap-south-1
+      ApplicationCI:
+        description: 'Application name (used for secret lookup)'
+        required: true
+        type: string
+        default: 'myapp'
+      env:
+        description: 'Environment (dev, staging, prod)'
+        required: true
+        type: choice
+        options:
+          - dev
+          - qa
+          - stg
+          - prd
+      EnvType:
+        description: 'Environment type (primary or secondary or dr)'
+        required: true
+        type: choice
+        options:
+          - primary
+          - secondary
+          - dr
+      ActionToTake:
+        description: 'Terraform action to perform'
+        required: true
+        type: choice
+        options:
+          - Plan
+          - Apply
+          - Destroy
+
+# Add permissions at the workflow level
+permissions:
+  id-token: write   # Required for AWS credentials configuration :cite[1]:cite[8]
+  contents: read    # Required for checking out code
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.env }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Read bucket configuration from JSON
+        id: bucket_config
+        run: |
+          BUCKET_NAME="${{ github.event.inputs.BucketName }}"
+          CONFIG=$(jq -r --arg name "$BUCKET_NAME" '.[$name]' buckets.json)
+          if [ "$CONFIG" = "null" ]; then
+            echo "Error: Bucket '$BUCKET_NAME' not found in buckets.json"
+            exit 1
+          fi
+          
+          # Dynamically extract all properties from the JSON configuration
+          echo "config_json=$(echo $CONFIG | jq -c '.')" >> $GITHUB_OUTPUT
+          
+          # Extract all keys and set them as outputs
+          echo "$CONFIG" | jq -r 'keys[]' | while read key; do
+            value=$(echo "$CONFIG" | jq -r --arg k "$key" '.[$k] | tostring')
+            echo "$key=$value" >> $GITHUB_OUTPUT
+          done
+
+      - name: Generate terraform.tfvars
+        run: |
+          # Create a tfvars file with all the configuration
+          cat > terraform.tfvars << EOF
+          BucketName = "${{ github.event.inputs.BucketName }}"
+          ApplicationCI = "${{ github.event.inputs.ApplicationCI }}"
+          env = "${{ github.event.inputs.env }}"
+          EnvType = "${{ github.event.inputs.EnvType }}"
+          Region = "${{ github.event.inputs.Region }}"
+          EOF
+          
+          # Add all dynamic properties from the JSON config
+          echo "${{ steps.bucket_config.outputs.config_json }}" | jq -r 'to_entries[] | "\(.key) = \(.value | @json)"' >> terraform.tfvars
+          
+          echo "Generated terraform.tfvars:"
+          cat terraform.tfvars
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Configure AWS credentials
+        run: |
+          # Construct secret names based on inputs
+          ACCESS_KEY_SECRET="${{ github.event.inputs.ApplicationCI }}_${{ github.event.inputs.env }}_AWS_ACCESS_KEY_ID"
+          SECRET_KEY_SECRET="${{ github.event.inputs.ApplicationCI }}_${{ github.event.inputs.env }}_AWS_SECRET_ACCESS_KEY"
+          
+          # Retrieve secrets using constructed names
+          AWS_ACCESS_KEY_ID=$(echo "${{ secrets[ACCESS_KEY_SECRET] }}" | tr -d '\n')
+          AWS_SECRET_ACCESS_KEY=$(echo "${{ secrets[SECRET_KEY_SECRET] }}" | tr -d '\n')
+          
+          # Configure AWS credentials using environment variables
+          echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> $GITHUB_ENV
+          echo "AWS_REGION=${{ github.event.inputs.Region }}" >> $GITHUB_ENV
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        if: github.event.inputs.ActionToTake == 'Plan'
+        run: terraform plan -var-file="terraform.tfvars"
+
+      - name: Terraform Apply
+        if: github.event.inputs.ActionToTake == 'Apply'
+        run: terraform apply -auto-approve -var-file="terraform.tfvars"
+
+      - name: Terraform Destroy
+        if: github.event.inputs.ActionToTake == 'Destroy'
+        run: terraform destroy -auto-approve -var-file="terraform.tfvars"
