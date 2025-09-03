@@ -88,7 +88,7 @@ jobs:
               env: $env,
               EnvType: $EnvType,
               Region: $Region
-            } + ($bucket_config | fromjson)' > terraform.tfvars.json  # Parse the string back to JSON
+            } + $bucket_config' > terraform.tfvars.json  # Parse the string back to JSON
       
           echo "Generated terraform.tfvars.json:"
           cat terraform.tfvars.json
