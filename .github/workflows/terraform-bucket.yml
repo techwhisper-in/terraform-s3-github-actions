@@ -95,7 +95,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: ${{ github.event.inputs.Region }}
-          special-characters-workaround: true
 
       - name: Terraform Init
         run: terraform init
