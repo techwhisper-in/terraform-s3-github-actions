@@ -68,22 +68,27 @@ jobs:
             echo "Error: Bucket '$BUCKET_NAME' not found in buckets.json"
             exit 1
           fi
-          echo "config_json=$(echo $CONFIG | jq -c '.')" >> $GITHUB_OUTPUT
+          # Use jq to output all properties as a single JSON string
+          echo "config_json=$(echo "$CONFIG" | jq -c .)" >> $GITHUB_OUTPUT
 
       - name: Generate terraform.tfvars.json
         run: |
-          # Create a combined JSON object with inputs and bucket config
-          cat > terraform.tfvars.json << EOF
-          {
-            "BucketName": "${{ github.event.inputs.BucketName }}",
-            "ApplicationCI": "${{ github.event.inputs.ApplicationCI }}",
-            "env": "${{ github.event.inputs.env }}",
-            "EnvType": "${{ github.event.inputs.EnvType }}",
-            "Region": "${{ github.event.inputs.Region }}",
-            $(echo "${{ steps.bucket_config.outputs.config_json }}" | jq -r 'to_entries | map("\"\(.key)\": \(.value | @json)") | join(",")')
-          }
-          EOF
-          
+          # Combine inputs and bucket config into a single JSON object
+          jq -n \
+            --arg BucketName "${{ github.event.inputs.BucketName }}" \
+            --arg ApplicationCI "${{ github.event.inputs.ApplicationCI }}" \
+            --arg env "${{ github.event.inputs.env }}" \
+            --arg EnvType "${{ github.event.inputs.EnvType }}" \
+            --arg Region "${{ github.event.inputs.Region }}" \
+            --argjson bucket_config "${{ steps.bucket_config.outputs.config_json }}" \
+            '{
+              BucketName: $BucketName,
+              ApplicationCI: $ApplicationCI,
+              env: $env,
+              EnvType: $EnvType,
+              Region: $Region
+            } + $bucket_config' > terraform.tfvars.json
+      
           echo "Generated terraform.tfvars.json:"
           cat terraform.tfvars.json
 
