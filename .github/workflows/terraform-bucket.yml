@@ -45,11 +45,6 @@ on:
           - Apply
           - Destroy
 
-# Add permissions at the workflow level
-permissions:
-  id-token: write   # Required for AWS credentials configuration :cite[1]:cite[8]
-  contents: read    # Required for checking out code
-
 jobs:
   terraform:
     runs-on: ubuntu-latest
