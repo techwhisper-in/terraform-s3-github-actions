@@ -10,6 +10,7 @@ on:
         description: 'Region Name'
         required: true
         type: choice
+        default: 'us-east-2'
         options:
           - us-east-1
           - us-east-2
@@ -23,6 +24,7 @@ on:
         description: 'Environment (dev, qa, stg, prd)'
         required: true
         type: choice
+        default: 'dev'
         options:
           - dev
           - qa
@@ -32,6 +34,7 @@ on:
         description: 'Environment type (primary or secondary or dr)'
         required: true
         type: choice
+        default: 'dr'
         options:
           - primary
           - secondary
@@ -40,6 +43,7 @@ on:
         description: 'Terraform action to perform'
         required: true
         type: choice
+        default: 'Plan'
         options:
           - Plan
           - Apply
