@@ -15,12 +15,12 @@ on:
           - us-east-2
           - ap-south-1
       ApplicationCI:
-        description: 'Application name (used for secret lookup)'
+        description: 'ApplicationCI name'
         required: true
         type: string
         default: 'myapp'
       env:
-        description: 'Environment (dev, staging, prod)'
+        description: 'Environment (dev, qa, stg, prd)'
         required: true
         type: choice
         options:
@@ -98,20 +98,12 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
-      - name: Configure AWS credentials
-        run: |
-          # Construct secret names based on inputs
-          ACCESS_KEY_SECRET="${{ github.event.inputs.ApplicationCI }}_${{ github.event.inputs.env }}_AWS_ACCESS_KEY_ID"
-          SECRET_KEY_SECRET="${{ github.event.inputs.ApplicationCI }}_${{ github.event.inputs.env }}_AWS_SECRET_ACCESS_KEY"
-          
-          # Retrieve secrets using constructed names
-          AWS_ACCESS_KEY_ID=$(echo "${{ secrets[ACCESS_KEY_SECRET] }}" | tr -d '\n')
-          AWS_SECRET_ACCESS_KEY=$(echo "${{ secrets[SECRET_KEY_SECRET] }}" | tr -d '\n')
-          
-          # Configure AWS credentials using environment variables
-          echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> $GITHUB_ENV
-          echo "AWS_REGION=${{ github.event.inputs.Region }}" >> $GITHUB_ENV
+      - name: 'Configure AWS credentials'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_SECRET_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-region: ${{ github.event.inputs.Region }}
 
       - name: Terraform Init
         run: terraform init
