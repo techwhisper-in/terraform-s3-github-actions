@@ -70,24 +70,25 @@ jobs:
           fi
           # Use jq to output all properties as a single JSON string
           echo "config_json=$(echo "$CONFIG" | jq -c .)" >> $GITHUB_OUTPUT
+          echo ${{ steps.bucket_config.outputs.config_json }}
 
       - name: Generate terraform.tfvars.json
         run: |
-          # Combine inputs and bucket config into a single JSON object
+          # Use --arg to pass string values
           jq -n \
             --arg BucketName "${{ github.event.inputs.BucketName }}" \
             --arg ApplicationCI "${{ github.event.inputs.ApplicationCI }}" \
             --arg env "${{ github.event.inputs.env }}" \
             --arg EnvType "${{ github.event.inputs.EnvType }}" \
             --arg Region "${{ github.event.inputs.Region }}" \
-            --argjson bucket_config "${{ steps.bucket_config.outputs.config_json }}" \
+            --arg bucket_config "${{ steps.bucket_config.outputs.config_json }}" \
             '{
               BucketName: $BucketName,
               ApplicationCI: $ApplicationCI,
               env: $env,
               EnvType: $EnvType,
               Region: $Region
-            } + $bucket_config' > terraform.tfvars.json
+            } + ($bucket_config | fromjson)' > terraform.tfvars.json  # Parse the string back to JSON
       
           echo "Generated terraform.tfvars.json:"
           cat terraform.tfvars.json
