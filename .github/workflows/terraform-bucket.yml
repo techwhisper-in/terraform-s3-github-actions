@@ -97,7 +97,7 @@ jobs:
           aws-region: ${{ github.event.inputs.Region }}
 
       - name: Terraform Init
-        run: terraform init -backend-config=backend.config.tfvars
+        run: terraform init -backend-config="key=${{ github.event.inputs.BucketName }}/terraform.tfstate"
 
       - name: Terraform Plan
         if: github.event.inputs.ActionToTake == 'Plan'
